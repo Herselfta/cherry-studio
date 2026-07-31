@@ -26,6 +26,26 @@ export async function buildBackupArtifactFileName(artifactType: BackupArtifactTy
   return `cherry-studio${PC_MIGRATION_BACKUP_MARKER}${timestamp}.${hostname || 'desktop'}.${deviceType || 'desktop'}.zip`
 }
 
+/**
+ * Resolve the current device's hostname + deviceType for device-aware pruning.
+ *
+ * The filename written at upload time (buildBackupArtifactFileName) embeds the
+ * same hostname/deviceType, and the device-aware pruning filter
+ * (getRemotePortableBackupFilesToDelete / getAppMigrationBackupFilesToDelete)
+ * must match it via `fileName.includes(hostname)` etc. Without passing real
+ * values here, pruning falls into the global branch and counts OTHER devices'
+ * backups against this device's maxBackups quota, deleting archives that
+ * don't belong to the current device. Falls back to 'unknown' (never throws)
+ * to match BackupService's long-standing convention.
+ */
+export async function resolveDeviceContext(): Promise<{ hostname: string; deviceType: string }> {
+  const [hostname, deviceType] = await Promise.all([
+    window.api.system.getHostname().catch(() => 'unknown'),
+    window.api.system.getDeviceType().catch(() => 'unknown')
+  ])
+  return { hostname: hostname || 'unknown', deviceType: deviceType || 'unknown' }
+}
+
 export function isMobileSyncArtifactFile(fileName: string) {
   return (
     fileName.startsWith('cherry-studio') && fileName.endsWith('.json') && fileName.includes(MOBILE_SYNC_BACKUP_MARKER)

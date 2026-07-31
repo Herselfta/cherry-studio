@@ -17,7 +17,8 @@ import {
   isRemotePortablePcArtifactFile,
   isStrictPcMigrationArtifactFile,
   LEGACY_PORTABLE_BACKUP_FILE_NAME,
-  PC_MIGRATION_BACKUP_MARKER
+  PC_MIGRATION_BACKUP_MARKER,
+  resolveDeviceContext
 } from './BackupArtifactService'
 import {
   BACKUP_LOCAL_STORAGE_VERSION,
@@ -426,6 +427,8 @@ export async function backupToWebdavWithConfig(
   const backupFileName = customFileName || (await buildBackupArtifactFileName('pc'))
   const finalFileName = backupFileName.endsWith('.zip') ? backupFileName : `${backupFileName}.zip`
 
+  const { hostname, deviceType } = await resolveDeviceContext()
+
   try {
     const success = await window.api.backup.backupMigrationToWebdav(
       {
@@ -461,8 +464,8 @@ export async function backupToWebdavWithConfig(
 
           // PC Cleanup
           const pcFilesToDelete = getRemotePortableBackupFilesToDelete(files, webdavMaxBackups, {
-            deviceType: '',
-            hostname: ''
+            deviceType,
+            hostname
           })
           for (const file of pcFilesToDelete) {
             await deleteWebdavFileWithRetry(file.fileName, webdavConfig).catch((error) => {
@@ -472,8 +475,8 @@ export async function backupToWebdavWithConfig(
 
           // App Cleanup (Separate)
           const appFilesToDelete = getAppMigrationBackupFilesToDelete(files, webdavMaxBackups, {
-            deviceType: '',
-            hostname: ''
+            deviceType,
+            hostname
           })
           for (const file of appFilesToDelete) {
             await deleteWebdavFileWithRetry(file.fileName, webdavConfig).catch((error) => {
@@ -1449,6 +1452,7 @@ export async function backupMigrationToLocal({
 
   const backupFileName = customFileName || (await buildBackupArtifactFileName('pc'))
   const finalFileName = backupFileName.endsWith('.zip') ? backupFileName : `${backupFileName}.zip`
+  const { hostname, deviceType } = await resolveDeviceContext()
 
   try {
     const result = await window.api.backup.backupMigrationToLocalDir(finalFileName, await getBackupData(), {
@@ -1477,8 +1481,8 @@ export async function backupMigrationToLocal({
 
           // PC Migration Cleanup
           const pcFilesToDelete = getRemotePortableBackupFilesToDelete(files, localBackupMaxBackups, {
-            deviceType: '',
-            hostname: ''
+            deviceType,
+            hostname
           })
           for (const file of pcFilesToDelete) {
             await window.api.backup.deleteLocalBackupFile(file.fileName, localBackupDir)
@@ -1486,8 +1490,8 @@ export async function backupMigrationToLocal({
 
           // App Migration Cleanup
           const appFilesToDelete = getAppMigrationBackupFilesToDelete(files, localBackupMaxBackups, {
-            deviceType: '',
-            hostname: ''
+            deviceType,
+            hostname
           })
           for (const file of appFilesToDelete) {
             await window.api.backup.deleteLocalBackupFile(file.fileName, localBackupDir)

@@ -6,7 +6,7 @@ import type { WebDavConfig } from '@renderer/types'
 import { NUTSTORE_HOST } from '@shared/config/nutstore'
 import { type CreateDirectoryOptions } from 'webdav'
 
-import { buildBackupArtifactFileName } from './BackupArtifactService'
+import { buildBackupArtifactFileName, resolveDeviceContext } from './BackupArtifactService'
 import {
   getAppMigrationBackupFilesToDelete,
   getBackupData,
@@ -82,8 +82,14 @@ async function cleanupOldBackups(webdavConfig: WebDavConfig, maxBackups: number)
       return
     }
 
+    // Resolve real device context so pruning only counts this device's backups
+    // against maxBackups, matching scheduled upload behaviour. Passing empty
+    // strings here used to fall into the global branch and delete other devices'
+    // archives when their combined count exceeded this device's quota.
+    const { hostname, deviceType } = await resolveDeviceContext()
+
     // PC Cleanup
-    const pcFilesToDelete = getRemotePortableBackupFilesToDelete(files, maxBackups, { deviceType: '', hostname: '' })
+    const pcFilesToDelete = getRemotePortableBackupFilesToDelete(files, maxBackups, { deviceType, hostname })
     for (const file of pcFilesToDelete) {
       try {
         await window.api.backup.deleteWebdavFile(file.fileName, webdavConfig)
@@ -93,7 +99,7 @@ async function cleanupOldBackups(webdavConfig: WebDavConfig, maxBackups: number)
     }
 
     // App Cleanup (Separate)
-    const appFilesToDelete = getAppMigrationBackupFilesToDelete(files, maxBackups, { deviceType: '', hostname: '' })
+    const appFilesToDelete = getAppMigrationBackupFilesToDelete(files, maxBackups, { deviceType, hostname })
     for (const file of appFilesToDelete) {
       try {
         await window.api.backup.deleteWebdavFile(file.fileName, webdavConfig)
